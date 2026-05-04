@@ -1,0 +1,129 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Session {
+  id                   String    @id
+  shop                 String
+  state                String
+  isOnline             Boolean   @default(false)
+  scope                String?
+  expires              DateTime?
+  accessToken          String
+  userId               BigInt?
+  firstName            String?
+  lastName             String?
+  email                String?
+  accountOwner         Boolean   @default(false)
+  locale               String?
+  collaborator         Boolean?  @default(false)
+  emailVerified        Boolean?  @default(false)
+  refreshToken         String?
+  refreshTokenExpires  DateTime?
+}
+
+model Shop {
+  id         String        @id @default(cuid())
+  shopDomain String        @unique
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+  slots      BookingSlot[]
+  bookings   Booking[]
+}
+
+model BookingSlot {
+  id               String      @id @default(cuid())
+  shopId           String
+  date             DateTime
+  startTime        String
+  endTime          String
+  capacityMax      Int         @default(15)
+  capacityReserved Int         @default(0)
+  status           SlotStatus  @default(AVAILABLE)
+  isBlocked        Boolean     @default(false)
+  blockReason      String?
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  shop             Shop        @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  bookings         Booking[]
+
+  @@unique([shopId, date, startTime, endTime])
+  @@index([shopId, date])
+}
+
+model Booking {
+  id                String         @id @default(cuid())
+  shopId            String
+  slotId            String
+  orderId           String?
+  orderName         String?
+  productHandle     String?
+  customerFirstName String
+  customerLastName  String
+  customerEmail     String
+  customerPhone     String
+  participantsCount Int
+  customerComment   String?
+  status            BookingStatus  @default(PENDING)
+  paymentStatus     PaymentStatus  @default(PENDING)
+  adminNote         String?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  shop              Shop           @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  slot              BookingSlot    @relation(fields: [slotId], references: [id], onDelete: Restrict)
+  events            BookingEvent[]
+
+  @@index([slotId])
+  @@index([shopId, createdAt])
+}
+
+model BookingEvent {
+  id           String           @id @default(cuid())
+  bookingId    String
+  eventType    BookingEventType
+  actor        String
+  previousData Json?
+  newData      Json?
+  createdAt    DateTime         @default(now())
+
+  booking      Booking          @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+}
+
+enum SlotStatus {
+  AVAILABLE
+  FULL
+  BLOCKED
+  CLOSED
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  MOVED
+  NO_SHOW
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  REFUNDED
+  FAILED
+}
+
+enum BookingEventType {
+  CREATED
+  UPDATED
+  MOVED
+  CANCELLED
+  BLOCKED_SLOT
+  UNBLOCKED_SLOT
+  PAYMENT_CONFIRMED
+}

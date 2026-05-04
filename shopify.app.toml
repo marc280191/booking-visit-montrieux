@@ -1,0 +1,33 @@
+# Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
+
+client_id = "2f5d1cb0ce9abb8ad83745855f29459b"
+name = "visit-booking-montrieux"
+application_url = "https://shopify.dev/apps/default-app-home"
+embedded = true
+handle = "distillerie-montrieux-booking"
+
+[build]
+automatically_update_urls_on_dev = true
+include_config_on_deploy = true
+
+[webhooks]
+api_version = "2026-07"
+
+  [[webhooks.subscriptions]]
+  topics = [ "orders/paid" ]
+  uri = "/webhooks/orders_paid"
+
+[access_scopes]
+# Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
+scopes = "read_products,read_orders,write_app_proxy"
+
+[auth]
+redirect_urls = [ "https://shopify.dev/apps/default-app-home/api/auth" ]
+
+[app_proxy]
+url = "/booking-proxy"
+subpath = "montrieux-booking"
+prefix = "apps"
+
+[pos]
+embedded = false
