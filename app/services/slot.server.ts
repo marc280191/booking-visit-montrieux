@@ -9,12 +9,77 @@ const weeklySlots: Record<number, Array<[string, string]>> = {
   6: [['11:00', '12:00'], ['14:00', '15:00'], ['16:00', '17:00'], ['17:00', '18:00']],
 };
 
+function getCurrentTimeText() {
+  const now = new Date();
+  const hours = String(now.getHours()).padStart(2, '0');
+  const minutes = String(now.getMinutes()).padStart(2, '0');
+  return `${hours}:${minutes}`;
+}
+
+export function isSlotPast(slot: { date: Date; endTime: string }) {
+  const today = startOfDay(new Date());
+  const slotDate = startOfDay(slot.date);
+
+  if (slotDate < today) return true;
+  if (slotDate > today) return false;
+
+  return slot.endTime <= getCurrentTimeText();
+}
+
+export function isSlotFutureOrCurrent(slot: { date: Date; endTime: string }) {
+  return !isSlotPast(slot);
+}
+
 export async function getOrCreateShop(shopDomain: string) {
   return db.shop.upsert({
     where: { shopDomain },
     update: {},
     create: { shopDomain },
   });
+}
+
+export async function cleanupPastEmptySlots(shopId: string) {
+  const today = startOfDay(new Date());
+  const currentTime = getCurrentTimeText();
+
+  const pastEmptySlots = await db.bookingSlot.findMany({
+    where: {
+      shopId,
+      bookings: {
+        none: {},
+      },
+      OR: [
+        {
+          date: {
+            lt: today,
+          },
+        },
+        {
+          date: today,
+          endTime: {
+            lte: currentTime,
+          },
+        },
+      ],
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  if (pastEmptySlots.length === 0) {
+    return { deletedCount: 0 };
+  }
+
+  const result = await db.bookingSlot.deleteMany({
+    where: {
+      id: {
+        in: pastEmptySlots.map((slot) => slot.id),
+      },
+    },
+  });
+
+  return { deletedCount: result.count };
 }
 
 export async function ensureFutureSlots(shopDomain: string, horizon = 120) {
@@ -48,18 +113,25 @@ export async function ensureFutureSlots(shopDomain: string, horizon = 120) {
       });
     }
   }
+
+  await cleanupPastEmptySlots(shop.id);
+
+  return shop;
 }
 
 export async function listSlotsByDate(shopDomain: string, date: Date) {
   const shop = await getOrCreateShop(shopDomain);
+  const requestedDate = startOfDay(date);
 
-  return db.bookingSlot.findMany({
+  const slots = await db.bookingSlot.findMany({
     where: {
       shopId: shop.id,
-      date: startOfDay(date),
+      date: requestedDate,
     },
     orderBy: [{ startTime: 'asc' }],
   });
+
+  return slots.filter(isSlotFutureOrCurrent);
 }
 
 export async function recalcSlotCapacity(slotId: string) {

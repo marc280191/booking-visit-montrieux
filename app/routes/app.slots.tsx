@@ -9,10 +9,12 @@ import {
 } from "@shopify/polaris";
 import { useMemo, useState } from "react";
 import { useFetcher, useLoaderData, useLocation } from "react-router";
+import { startOfDay } from "date-fns";
 import { db } from "../db.server";
 import { authenticate } from "../shopify.server";
 import { AdminShell } from "../components/AdminShell";
 import { EmbeddedNavLink } from "../components/EmbeddedNavLink";
+import { cleanupPastEmptySlots, isSlotFutureOrCurrent } from "../services/slot.server";
 
 export async function loader({ request }: { request: Request }) {
   const { session } = await authenticate.admin(request);
@@ -25,13 +27,22 @@ export async function loader({ request }: { request: Request }) {
     return { slots: [] };
   }
 
+  await cleanupPastEmptySlots(shop.id);
+
   const slots = await db.bookingSlot.findMany({
-    where: { shopId: shop.id },
+    where: {
+      shopId: shop.id,
+      date: {
+        gte: startOfDay(new Date()),
+      },
+    },
     orderBy: [{ date: "asc" }, { startTime: "asc" }],
-    take: 60,
+    take: 80,
   });
 
-  return { slots };
+  return {
+    slots: slots.filter(isSlotFutureOrCurrent),
+  };
 }
 
 function AdminActionLink({
