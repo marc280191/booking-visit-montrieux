@@ -1,5 +1,13 @@
-import { Outlet, useRouteError, isRouteErrorResponse } from "react-router";
+import {
+  Outlet,
+  useRouteError,
+  isRouteErrorResponse,
+  useNavigate,
+} from "react-router";
+import type { HeadersFunction } from "react-router";
 import { AppProvider, Card, Page, Text } from "@shopify/polaris";
+import { boundary } from "@shopify/shopify-app-react-router/server";
+import { useEffect } from "react";
 import { authenticate } from "../shopify.server";
 
 const polarisTranslations = {
@@ -23,8 +31,31 @@ export default function AppLayout() {
   );
 }
 
+export const headers: HeadersFunction = (headersArgs) => {
+  return boundary.headers(headersArgs);
+};
+
 export function ErrorBoundary() {
   const error = useRouteError();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (isRouteErrorResponse(error) && error.status === 200) {
+      navigate("/app", { replace: true });
+    }
+  }, [error, navigate]);
+
+  if (isRouteErrorResponse(error) && error.status === 200) {
+    return (
+      <AppProvider i18n={polarisTranslations}>
+        <Page>
+          <Card>
+            <Text as="p">Chargement de l’administration…</Text>
+          </Card>
+        </Page>
+      </AppProvider>
+    );
+  }
 
   let title = "Erreur";
   let message = "Une erreur est survenue dans l’application admin.";
