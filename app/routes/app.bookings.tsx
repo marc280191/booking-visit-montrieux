@@ -11,7 +11,7 @@ import {
   TextField,
 } from "@shopify/polaris";
 import { useMemo, useState } from "react";
-import { useFetcher, useLoaderData } from "react-router";
+import { useFetcher, useLoaderData, useLocation } from "react-router";
 import { db } from "../db.server";
 import { authenticate } from "../shopify.server";
 import { AdminShell } from "../components/AdminShell";
@@ -25,7 +25,10 @@ export async function loader({ request }: { request: Request }) {
   });
 
   if (!shop) {
-    return { bookings: [], moveTargets: {} as Record<string, Array<{ label: string; value: string }>> };
+    return {
+      bookings: [],
+      moveTargets: {} as Record<string, Array<{ label: string; value: string }>>,
+    };
   }
 
   const bookings = await db.booking.findMany({
@@ -87,6 +90,10 @@ function AdminActionLink({
 
 export default function BookingsPage() {
   const { bookings, moveTargets } = useLoaderData<typeof loader>();
+
+  const location = useLocation();
+  const authSearch = location.search || "";
+
   const cancelFetcher = useFetcher();
   const moveFetcher = useFetcher();
 
@@ -213,7 +220,11 @@ export default function BookingsPage() {
                       <Text as="h4" variant="headingMd">
                         Annuler la réservation
                       </Text>
-                      <cancelFetcher.Form method="post" action="/app/api/bookings/cancel">
+
+                      <cancelFetcher.Form
+                        method="post"
+                        action={`/app/api/bookings/cancel${authSearch}`}
+                      >
                         <input type="hidden" name="bookingId" value={booking.id} />
                         <Button submit tone="critical">
                           Annuler la réservation
@@ -237,7 +248,10 @@ export default function BookingsPage() {
                         }
                       />
 
-                      <moveFetcher.Form method="post" action="/app/api/bookings/move">
+                      <moveFetcher.Form
+                        method="post"
+                        action={`/app/api/bookings/move${authSearch}`}
+                      >
                         <input type="hidden" name="bookingId" value={booking.id} />
                         <input
                           type="hidden"
