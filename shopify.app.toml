@@ -5,8 +5,7 @@ embedded = true
 handle = "distillerie-montrieux-booking"
 
 [build]
-automatically_update_urls_on_dev = true
-include_config_on_deploy = true
+automatically_update_urls_on_dev = false
 
 [webhooks]
 api_version = "2026-07"
@@ -19,10 +18,14 @@ api_version = "2026-07"
 scopes = "read_products,read_orders,write_app_proxy"
 
 [auth]
-redirect_urls = [ "https://booking-visit-montrieux.onrender.com/api/auth" ]
+redirect_urls = [
+  "https://booking-visit-montrieux.onrender.com/auth/callback",
+  "https://booking-visit-montrieux.onrender.com/auth/shopify/callback",
+  "https://booking-visit-montrieux.onrender.com/api/auth/callback"
+]
 
 [app_proxy]
-url = "/booking-proxy"
+url = "https://booking-visit-montrieux.onrender.com/booking-proxy"
 subpath = "montrieux-booking"
 prefix = "apps"
 
